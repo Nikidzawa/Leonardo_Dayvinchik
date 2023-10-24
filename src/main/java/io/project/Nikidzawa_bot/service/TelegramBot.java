@@ -70,7 +70,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (isMessage) {
             String messageText = update.getMessage().getText();
             EnumCurrentState currentState = EnumCurrentState.valueOf(userEntity.getState_enum());
-            //Регистрация
+            //Регистрация или повторное заполнение всей анкеты
             switch (currentState) {
                 case START:
                     List<String> startMessage = List.of("Начнём!");
@@ -79,15 +79,13 @@ public class TelegramBot extends TelegramLongPollingBot {
                     userEntity.setState_enum(EnumCurrentState.ASK_NAME.name());
                     break;
                 case ASK_NAME:
-                    if (userEntity.getName() != null) {
-                        List<String> setNameRows = Arrays.asList(update.getMessage().getChat().getFirstName(), userEntity.getName());
-                        ReplyKeyboardMarkup setMyNameMarkup = KeyboardMarkupBuilder(setNameRows);
-                        sendMessage(userId, message.ASK_NAME, setMyNameMarkup);
+                    if (messageText.equals("Начнём!")) {
+                        sendMessage(userId, message.ASK_NAME);
+                    } else {
+                        sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
                     }
-                    else if (messageText.equals("Начнём!")) {sendMessage(userId, message.ASK_NAME);}
-                    else {sendMessageNotRemoveMarkUp(userId,message.EXCEPTION);}
-                        userEntity.setState_enum(EnumCurrentState.ASK_GENDER.name());
-                        break;
+                    userEntity.setState_enum(EnumCurrentState.ASK_GENDER.name());
+                    break;
                 case ASK_GENDER:
                     if (messageText.length() <= 20) {
                         List<String> userGender = Arrays.asList("Мужчина", "Женщина");
@@ -96,8 +94,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                         sendMessage(userId, message.ASK_GENDER, userGenderMurkUp);
                         userEntity.setName(messageText);
                         userEntity.setState_enum(EnumCurrentState.ASK_GENDER_SEARCH.name());
-                    }
-                    else sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
+                    } else sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
                     break;
                 case ASK_GENDER_SEARCH:
                     if (messageText.equals("Мужчина") || messageText.equals("Женщина")) {
@@ -107,8 +104,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                         sendMessage(userId, message.ASK_GENDER_SEARCH, choseGenderMarkUp);
                         userEntity.setGender(messageText);
                         userEntity.setState_enum(EnumCurrentState.ASK_AGE.name());
-                    }
-                    else sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
+                    } else sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
                     break;
                 case ASK_AGE:
                     if (messageText.equals("Мужчины") || messageText.equals("Женщины") || messageText.equals("Без разницы")) {
@@ -117,11 +113,11 @@ public class TelegramBot extends TelegramLongPollingBot {
                             List<String> setMyAgeRows = Arrays.asList(String.valueOf(userEntity.getAge()));
                             ReplyKeyboardMarkup setMyAge = KeyboardMarkupBuilder(setMyAgeRows);
                             sendMessage(userId, message.ASK_AGE, setMyAge);
+                        } else {
+                            sendMessage(userId, message.ASK_AGE);
                         }
-                        else {sendMessage(userId, message.ASK_AGE);}
                         userEntity.setState_enum(EnumCurrentState.ASK_CITY.name());
-                    }
-                    else sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
+                    } else sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
                     break;
                 case ASK_CITY:
                     if (messageText.matches("\\d+") && Integer.parseInt(messageText) >= 12 && Integer.parseInt(messageText) <= 100) {
@@ -129,170 +125,244 @@ public class TelegramBot extends TelegramLongPollingBot {
                             List<String> setMyCityRows = Arrays.asList(userEntity.getCity());
                             ReplyKeyboardMarkup setMyCity = KeyboardMarkupBuilder(setMyCityRows);
                             sendMessage(userId, message.ASK_CITY, setMyCity);
+                        } else {
+                            sendMessage(userId, message.ASK_CITY);
                         }
-                        else {sendMessage(userId, message.ASK_CITY);}
                         userEntity.setAge(Integer.parseInt(messageText));
                         userEntity.setState_enum(EnumCurrentState.ASK_INFO.name());
-                    }
-                    else sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
+                    } else sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
                     break;
                 case ASK_INFO:
                     if (userEntity.getInfo() != null) {
                         List<String> setMyInfoRows = Arrays.asList("Оставить текущий текст");
                         ReplyKeyboardMarkup setMyCityMarkup = KeyboardMarkupBuilder(setMyInfoRows);
                         sendMessage(userId, message.ASK_INFO, setMyCityMarkup);
+                    } else {
+                        sendMessage(userId, message.ASK_INFO);
                     }
-                    else {sendMessage(userId, message.ASK_INFO);}
                     userEntity.setCity(messageText);
                     userEntity.setState_enum(EnumCurrentState.ASK_PHOTO.name());
                     break;
                 case ASK_PHOTO:
                     if (userEntity.getPhoto() != null) {
-                        List<String> setMyPhotoRows = Arrays.asList("Оставить текущее фото");
+                        List<String> setMyPhotoRows = List.of("Оставить текущее фото");
                         ReplyKeyboardMarkup setMyPhoto = KeyboardMarkupBuilder(setMyPhotoRows);
                         sendMessage(userId, message.ASK_PHOTO, setMyPhoto);
+                    } else {
+                        sendMessage(userId, message.ASK_PHOTO);
                     }
-                    else {sendMessage(userId, message.ASK_PHOTO);}
-                    if (!messageText.equals("Оставить текущий текст")) {userEntity.setInfo(messageText);}
+                    if (!messageText.equals("Оставить текущий текст")) {
+                        userEntity.setInfo(messageText);
+                    }
                     userEntity.setState_enum(EnumCurrentState.ASK_RESULT.name());
                     break;
                 case ASK_RESULT:
                     List<String> resultAnswerRows = Arrays.asList("Заполнить заново", "Продолжить");
                     ReplyKeyboardMarkup resultAnswer = KeyboardMarkupBuilder(resultAnswerRows);
                     if (update.getMessage().hasPhoto()) {
-                            List<PhotoSize> photos = update.getMessage().getPhoto();
-                            String fileId = photos.stream()
-                                    .sorted(Comparator.comparing(PhotoSize::getFileSize).reversed())
-                                    .findFirst()
-                                    .orElse(null).getFileId();
-                            userEntity.setPhoto(fileId);
-                            sendMessage(userId, "Ваша анкета: ");
-                            sendDatingSiteProfile(userId, userEntity);
-                            sendMessage(userId, "Всё верно?", resultAnswer);
-
-                    }
-                    else if (messageText.equals("Оставить текущее фото")) {
+                        List<PhotoSize> photos = update.getMessage().getPhoto();
+                        String fileId = photos.stream()
+                                .sorted(Comparator.comparing(PhotoSize::getFileSize).reversed())
+                                .findFirst()
+                                .orElse(null).getFileId();
+                        userEntity.setPhoto(fileId);
                         sendMessage(userId, "Ваша анкета: ");
                         sendDatingSiteProfile(userId, userEntity);
                         sendMessage(userId, "Всё верно?", resultAnswer);
-                    }
-                    else if (messageText.equals("Заполнить заново")) {
+
+                    } else if (messageText.equals("Оставить текущее фото")) {
+                        sendMessage(userId, "Ваша анкета: ");
+                        sendDatingSiteProfile(userId, userEntity);
+                        sendMessage(userId, "Всё верно?", resultAnswer);
+                    } else if (messageText.equals("Заполнить заново")) {
                         userEntity.setState_enum(EnumCurrentState.ASK_NAME.name());
                         break;
-                    }
-                    else if (messageText.equals("Продолжить")) {
+                    } else if (messageText.equals("Продолжить")) {
                         recomendationUsers.put(userId, userRepository.findAllByCityAndIdNot(userEntity.getCity(), userId));
+                        sendMessageNotRemoveMarkUp(userId, EmojiParser.parseToUnicode(":mag::sparkles:"));
                         userEntity.setState_enum(EnumCurrentState.FIND_PEOPLE.name());
+                        findPeopleAndPutInCache(userEntity);
                         break;
+                    } else {
+                        sendMessage(userId, message.EXCEPTION, resultAnswer);
                     }
-                    else {sendMessage(userId, message.EXCEPTION, resultAnswer);}
             }
-
             //Просмтр анент, Отслеживание лайков
             switch (currentState) {
-                case FIND_PEOPLE :
+                case FIND_PEOPLE:
                     if (messageText.equals(EmojiParser.parseToUnicode(":heart:"))) {
                         peopleWhoLiked.put(intermediateCache.get(userId).getId(), Arrays.asList(userEntity));
                         sendMessageNotRemoveMarkUp(userId, "Лайк отправлен");
-                        // TODO: 24.10.2023 создать шаблон для сообщения
-                        sendMessage(intermediateCache.get(userId).getId(), "");
+                        if (intermediateCache.get(userId).getState_enum().equals(EnumCurrentState.FIND_PEOPLE.name())
+                                && intermediateCache.get(userId).getGender().equals("Женщина")) {
+                            sendMessageNotRemoveMarkUp(intermediateCache.get(userId).getId(),
+                                    "Заканчивай с просмотром анкет, ты кому-то понравилась!");
+                        } else if (intermediateCache.get(userId).getState_enum().equals(EnumCurrentState.FIND_PEOPLE.name())
+                                && intermediateCache.get(userId).getGender().equals("Мужчина")) {
+                            sendMessageNotRemoveMarkUp(intermediateCache.get(userId).getId(),
+                                    "Заканчивай с просмотром анкет, ты кому-то понравился!");
+                        } else {
+                            sendMessageNotRemoveMarkUp(intermediateCache.get(userId).getId(),
+                                    "Твоя анкета кому-то понравилась!");
+                        }
                         intermediateCache.remove(userId);
-                    }
-                    if (messageText.equals(":zzz:")) {
+                    } else if (messageText.equals(EmojiParser.parseToUnicode(":zzz:"))) {
                         recomendationUsers.remove(userId);
                         intermediateCache.remove(userId);
                         userEntity.setState_enum(EnumCurrentState.MAIN_MENU.name());
+                        mainMenuCurrentStateMessage(userId);
+                        break;
+                    } else if (messageText.equals(EmojiParser.parseToUnicode(":love_letter:"))) {
+
                         break;
                     }
-                    if (messageText.equals(":love_letter:")) {
-
-                    }
-                    List<String> strings = Arrays.asList(
-                            EmojiParser.parseToUnicode(":heart:"),
-                            EmojiParser.parseToUnicode(":love_letter::movie_camera:"),
-                            EmojiParser.parseToUnicode(":thumbsdown:"),
-                            EmojiParser.parseToUnicode(":zzz:")
-                    );
-                    ReplyKeyboardMarkup digit = KeyboardMarkupBuilder(strings);
-
-                    if (recomendationUsers.get(userId) != null && recomendationUsers.containsKey(userId)) {
-                        List<UserEntity> userEntities = recomendationUsers.get(userId);
-                        Optional<UserEntity> isFirstUser = userEntities.stream().findFirst();
-                        isFirstUser.ifPresentOrElse(recomendUser -> {
-                            sendDatingSiteProfile(userId, recomendUser, digit);
-                            intermediateCache.put(userId, recomendUser);
-                            recomendationUsers.get(userId).remove(recomendUser);
-                        },() -> {
-                            recomendationUsers.remove(userId);
-                            List<String> returnMainMenuText = List.of("Вернуться в меню");
-                            ReplyKeyboardMarkup keyboardMarkup = KeyboardMarkupBuilder(returnMainMenuText);
-                            try {
-                                sendMessage(userId, message.FAILED_SEARCH, keyboardMarkup);
-                            } catch (TelegramApiException e) {
-                                throw new RuntimeException(e);
-                            }
-                            userEntity.setState_enum(EnumCurrentState.MAIN_MENU.name());
-                        } );
-                    }
+                    findPeopleAndPutInCache(userEntity);
                     break;
             }
-            //Главное меню и частичное изменение анкеты
+            //Главное меню
             switch (currentState) {
                 case MAIN_MENU:
                     if (EmojiParser.parseToUnicode(messageText).equals
                             (EmojiParser.parseToUnicode("1" + ":rocket:"))) {
-                        recomendationUsers.put(userId, userRepository.findAllByCityAndIdNot(userEntity.getCity(), userId));
+                        recomendationUsers.put(userId, userRepository.findAllByCityAndIdNot(
+                                userEntity.getCity(), userId));
+                        sendMessageNotRemoveMarkUp(userId,
+                                EmojiParser.parseToUnicode(":mag::sparkles:"));
                         userEntity.setState_enum(EnumCurrentState.FIND_PEOPLE.name());
+                        findPeopleAndPutInCache(userEntity);
                         break;
                     }
-                    if (messageText.equals("2")) {
-                        List<String> secondMenuRows = Arrays.asList
-                                ("1", "2", "3", EmojiParser.parseToUnicode("4:rocket:"));
-                        sendMessage(userId, "Так выглядит твоя анкета: ");
-                        ReplyKeyboardMarkup secondMenuMarkup = KeyboardMarkupBuilder(secondMenuRows);
-                        sendDatingSiteProfile(userId, userEntity, secondMenuMarkup);
-                        sendMessageNotRemoveMarkUp(userId, message.SECOND_MENU);
-                        userEntity.setState_enum(EnumCurrentState.SECOND_MENU.name());
+                    else if (messageText.equals("2")) {
+                        backToSecondMenu(userEntity);
                         break;
-                    } else {
+                    }
+                    else {
                         if (peopleWhoLiked.get(userId) == null)
-                            sendMessage(userId, "Подождём пока кто-то увидит твою анкету");
+                        {sendMessage(userId, "Подождём пока кто-то увидит твою анкету");}
                         else
-                            sendMessage(userId, "Ты понравился " + peopleWhoLiked.get(userId).size() + " людям. Показать их?");
-
-                        List<String> mainMenuStringRows = Arrays.asList(EmojiParser.parseToUnicode("1"+":rocket:"), "2", "3");
-                        ReplyKeyboardMarkup mainMenuMarkup = KeyboardMarkupBuilder(mainMenuStringRows);
-                        sendMessage(userId, message.MAIN_MENU, mainMenuMarkup);
+                        {sendMessage(userId, "Ты понравился " +
+                                    peopleWhoLiked.get(userId).size() + " людям. Показать их?");}
+                        mainMenuCurrentStateMessage(userId);
                     }
                     break;
                 case SECOND_MENU:
-                    if (EmojiParser.parseToUnicode(messageText).equals(EmojiParser.parseToUnicode("4:rocket:"))) {
-                        sendMessageNotRemoveMarkUp(userId, EmojiParser.parseToUnicode(":mag::sparkles:"));
-                        recomendationUsers.put(userId, userRepository.findAllByCityAndIdNot(userEntity.getCity(), userId));
+                    if (EmojiParser.parseToUnicode(messageText).equals(
+                            EmojiParser.parseToUnicode("4:rocket:"))) {
+                        sendMessageNotRemoveMarkUp(userId,
+                                EmojiParser.parseToUnicode(":mag::sparkles:"));
+                        recomendationUsers.put(userId, userRepository.findAllByCityAndIdNot(
+                                userEntity.getCity(), userId));
                         userEntity.setState_enum(EnumCurrentState.FIND_PEOPLE.name());
+                        findPeopleAndPutInCache(userEntity);
+                    } else {
+                        switch (messageText) {
+                            case "1":
+                                userEntity.setState_enum(EnumCurrentState.ASK_GENDER.name());
+                                List<String> setNameRows = Arrays.asList(update.getMessage().getChat().getFirstName(), userEntity.getName());
+                                ReplyKeyboardMarkup setMyNameMarkup = KeyboardMarkupBuilder(setNameRows);
+                                sendMessage(userId, message.ASK_NAME, setMyNameMarkup);
+                                break;
+                            case "2":
+                                List<String> backToMenuRow = Arrays.asList("Вернуться назад");
+                                ReplyKeyboardMarkup backToMenuMarkup = KeyboardMarkupBuilder(backToMenuRow);
+                                sendMessage(userId, message.ASK_PHOTO_CHANGE, backToMenuMarkup);
+                                userEntity.setState_enum(EnumCurrentState.ASK_PHOTO_CHANGE.name());
+                                break;
+                            case "3":
+                                List<String> backToMenuRow2 = Arrays.asList("Вернуться назад");
+                                ReplyKeyboardMarkup backToMenuMarkup2 = KeyboardMarkupBuilder(backToMenuRow2);
+                                sendMessage(userId, message.ASK_INFO_CHANGE, backToMenuMarkup2);
+                                userEntity.setState_enum(EnumCurrentState.ASK_INFO_CHANGE.name());
+                                break;
+                            default:
+                                sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
+                        }
                     }
-                    else {
-                    switch (messageText) {
-                        case "1":
-                            userEntity.setState_enum(EnumCurrentState.ASK_NAME.name());
-                            break;
-                        case "2":
-                            break;
-                        case "3":
-                            break;
-                        default:
-                            sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
+            }
+            //Изменение профиля из состояния SECOND_MENU
+            switch (currentState) {
+                case ASK_PHOTO_CHANGE:
+                    if (update.getMessage().hasPhoto()) {
+                        List<PhotoSize> photos = update.getMessage().getPhoto();
+                        String fileId = photos.stream()
+                                .sorted(Comparator.comparing(PhotoSize::getFileSize).reversed())
+                                .findFirst()
+                                .orElse(null).getFileId();
+                        userEntity.setPhoto(fileId);
+                        sendMessage(userId, "Давай посмотрим как теперь выглядит твоя анкета");
+                        backToSecondMenu(userEntity);
+                    } else if (messageText.equals("Вернуться назад")) {
+                        sendMessage(userId, "Возвращаемся назад");
+                        backToSecondMenu(userEntity);
+                    } else {
+                        sendMessageNotRemoveMarkUp(userId, message.EXCEPTION);
                     }
+                    break;
+                case ASK_INFO_CHANGE:
+                    if (messageText.equals("Вернуться назад")) {
+                        sendMessage(userId, "Возвращаемся назад");
+                        backToSecondMenu(userEntity);
+                    } else {
+                        sendMessage(userId, "Давай посмотрим как теперь выглядит твоя анкета");
+                        userEntity.setInfo(messageText);
+                        backToSecondMenu(userEntity);
                     }
+                    break;
             }
         }
         userRepository.save(userEntity);
+    }
+    //Ищет первого человека из кеша с рекомендациями, далее отправляет в человека промежуточный кеш
+    private void findPeopleAndPutInCache (UserEntity userEntity) {
+        Long userId = userEntity.getId();
+        List<String> strings = Arrays.asList(
+                EmojiParser.parseToUnicode(":heart:"),
+                EmojiParser.parseToUnicode(":love_letter::movie_camera:"),
+                EmojiParser.parseToUnicode(":thumbsdown:"),
+                EmojiParser.parseToUnicode(":zzz:")
+        );
+        ReplyKeyboardMarkup digit = KeyboardMarkupBuilder(strings);
+        List<UserEntity> userEntities = recomendationUsers.get(userId);
+        Optional<UserEntity> isFirstUser = userEntities.stream().findFirst();
+        isFirstUser.ifPresentOrElse(recomendUser -> {
+            sendDatingSiteProfile(userId, recomendUser, digit);
+            intermediateCache.put(userId, recomendUser);
+            recomendationUsers.get(userId).remove(recomendUser);
+        }, () -> {
+            recomendationUsers.remove(userId);
+            List<String> returnMainMenuText = List.of("Вернуться в меню");
+            ReplyKeyboardMarkup keyboardMarkup = KeyboardMarkupBuilder(returnMainMenuText);
+            try {
+                sendMessage(userId, message.FAILED_SEARCH, keyboardMarkup);
+            } catch (TelegramApiException e) {
+                throw new RuntimeException(e);
+            }
+            userEntity.setState_enum(EnumCurrentState.MAIN_MENU.name());
+        });
+    }
+    @SneakyThrows
+    private void mainMenuCurrentStateMessage(Long userId) {
+        List<String> mainMenuStringRows = Arrays.asList(
+                EmojiParser.parseToUnicode("1" + ":rocket:"), "2", "3");
+        ReplyKeyboardMarkup mainMenuMarkup = KeyboardMarkupBuilder(mainMenuStringRows);
+        sendMessage(userId, message.MAIN_MENU, mainMenuMarkup);
+    }
+    @SneakyThrows
+    private void backToSecondMenu(UserEntity userEntity) {
+        Long userId = userEntity.getId();
+        List<String> secondMenuRows = Arrays.asList
+                ("1", "2", "3", EmojiParser.parseToUnicode("4:rocket:"));
+        sendMessage(userId, "Так выглядит твоя анкета: ");
+        ReplyKeyboardMarkup secondMenuMarkup = KeyboardMarkupBuilder(secondMenuRows);
+        sendDatingSiteProfile(userId, userEntity, secondMenuMarkup);
+        sendMessageNotRemoveMarkUp(userId, message.SECOND_MENU);
+        userEntity.setState_enum(EnumCurrentState.SECOND_MENU.name());
     }
     //Хранит в себе ключ - id человека которого лайкнули, значение - коллекция из сущностей лайкнувших человека
     private HashMap<Long, List<UserEntity>> peopleWhoLiked = new HashMap<>();
     //Хранит в себе ключ - id вызвавшего, значение - коллекция из сущностей (рекомендации анкет)
     private HashMap<Long, List<UserEntity>>recomendationUsers = new HashMap<>();
-    // промежуточный кеш, который используется для переноса значений
+    // промежуточный кеш, который сохраняет анету в ожидании оценки, после оценки кеш чистится
     private HashMap<Long, UserEntity> intermediateCache = new HashMap<>();
     public ReplyKeyboardMarkup KeyboardMarkupBuilder(List<String> buttonLabels) {
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();

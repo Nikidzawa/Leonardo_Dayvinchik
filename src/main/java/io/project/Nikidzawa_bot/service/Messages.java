@@ -33,8 +33,10 @@ public class Messages {
     String FAILED_SEARCH;
     @Value(value = "${second.menu}")
     String SECOND_MENU;
-
-
+    @Value(value = "${ask.photo.change}")
+    String ASK_PHOTO_CHANGE;
+    @Value(value = "${ask.info.change}")
+    String ASK_INFO_CHANGE;
     //---------------EXCEPTIONS---------------//
     @Value(value = "${exception}")
     String EXCEPTION;

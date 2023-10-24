@@ -12,5 +12,7 @@ public enum EnumCurrentState {
     ASK_PHOTO,
     FIND_PEOPLE,
     MAIN_MENU,
-    SECOND_MENU
+    SECOND_MENU,
+    ASK_PHOTO_CHANGE,
+    ASK_INFO_CHANGE
 }

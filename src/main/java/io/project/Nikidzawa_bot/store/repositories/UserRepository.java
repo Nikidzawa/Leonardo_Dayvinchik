@@ -6,5 +6,5 @@ import org.springframework.data.repository.CrudRepository;
 import java.util.List;
 
 public interface UserRepository extends CrudRepository <UserEntity, Long> {
-    List<UserEntity> findAllByCityAndIdNot (String city, Long id);
+    List<UserEntity> findAllByCityAndIdNotAndIsActiveEquals(String city, Long id, Boolean isActive);
 }

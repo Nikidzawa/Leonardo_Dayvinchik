@@ -262,6 +262,12 @@ public class TelegramBot extends TelegramLongPollingBot {
                 case MAIN_MENU:
                     if (EmojiParser.parseToUnicode(messageText).equals
                             (EmojiParser.parseToUnicode("1" + ":rocket:"))) {
+                        if (peopleWhoLiked.containsKey(userId) && peopleWhoLiked.get(userId).size() > 0) {
+                            showPeopleWhoLikedMe(userEntity);
+                            userEntity.setState_enum(EnumCurrentState.SHOW_WHO_LIKED_ME.name());
+                            userRepository.save(userEntity);
+                            break;
+                        }
                         recomendationUsers.put(userId, userRepository.findAllByCityAndIdNotAndIsActiveEquals(
                                 userEntity.getCity(), userId, true));
                         sendMessageNotRemoveMarkUp(userId,
@@ -411,6 +417,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
         userRepository.save(userEntity);
     }
+    @SneakyThrows
     private void showPeopleWhoLikedMe (UserEntity userEntity) {
         Long userId = userEntity.getId();
         List<String> strings = Arrays.asList(
@@ -418,6 +425,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 EmojiParser.parseToUnicode(":thumbsdown:"),
                 EmojiParser.parseToUnicode(":zzz:")
         );
+        sendMessageNotRemoveMarkUp(userId, "Ты кому-то понравился!");
         ReplyKeyboardMarkup digit = KeyboardMarkupBuilder(strings);
         List<UserEntity> users = peopleWhoLiked.get(userId);
         Optional<UserEntity> isFirstLikedMeUser = users.stream().findFirst();

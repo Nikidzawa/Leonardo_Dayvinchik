@@ -2,6 +2,7 @@ package io.project.Nikidzawa_bot.service;
 
 public enum EnumCurrentState {
     START,
+    SECOND_START,
     ASK_NAME,
     ASK_GENDER,
     ASK_GENDER_SEARCH,

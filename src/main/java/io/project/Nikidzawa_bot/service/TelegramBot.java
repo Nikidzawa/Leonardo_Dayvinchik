@@ -213,14 +213,19 @@ private List<BotCommand> listOfCommands = new ArrayList<>();
                     findPeopleAndPutInCache(userEntity);
                     break;
                 case SEND_LOVE_LETTER:
-                    Long peopleId = intermediateCache.get(userId).getId();
-                    List<Pair<UserEntity, String>> likes = peopleWhoLiked.getOrDefault(peopleId, new ArrayList<>());
+                    if (messageText.equals("Вернуться назад")) {
+                        sendMessageNotRemoveMarkup(userId, "Продолжаем просмотр анкет");
+                    }
+                    else {
+                        Long peopleId = intermediateCache.get(userId).getId();
+                        List<Pair<UserEntity, String>> likes = peopleWhoLiked.getOrDefault(peopleId, new ArrayList<>());
 
-                    likes.add(Pair.of(userEntity, messageText));
-                    peopleWhoLiked.put(peopleId, likes);
+                        likes.add(Pair.of(userEntity, messageText));
+                        peopleWhoLiked.put(peopleId, likes);
 
-                    sendMessageNotRemoveMarkup(userId, "Сообщение отправлено");
-                    messageToLikingUser(userId);
+                        sendMessageNotRemoveMarkup(userId, "Сообщение отправлено");
+                        messageToLikingUser(userId);
+                    }
 
                     userEntity.setState_enum(EnumCurrentState.FIND_PEOPLE.name());
                     findPeopleAndPutInCache(userEntity);
